@@ -1,0 +1,72 @@
+//程序将重复的ip记录到了文件中，跑完程序后，需要再用以下两条命令打印出文件中的行数，即使不重复的ip的数目
+//hadoop fs -get /.../part*
+//wc -l part*
+
+package exam_1;
+
+import java.io.IOException;
+import java.util.HashSet;
+
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.io.LongWritable;
+import org.apache.hadoop.io.Text;
+import org.apache.hadoop.mapreduce.Job;
+import org.apache.hadoop.mapreduce.Mapper;
+import org.apache.hadoop.mapreduce.Reducer;
+import org.apache.hadoop.mapreduce.lib.input.FileInputFormat;
+import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat;
+
+public class Repeat_UV {
+	public static class map extends Mapper<LongWritable, Text, Text, Text> {
+		public void map(LongWritable key, Text value, Context context) throws IOException, InterruptedException {
+			String line = value.toString();
+			
+			//优化点1：使用split切分，而不是正则表达式，提高切分速度；
+			String[] tokens = line.split("\t");
+			String ip = tokens[0];
+			String time = tokens[1];
+			String data = time.split("/")[0];
+			context.write(new Text(ip), new Text(data));
+		}
+	}
+
+	public static class reduce extends Reducer<Text, Text, Text, Text> {
+		public void reduce(Text ip, Iterable<Text> data, Context context) throws IOException, InterruptedException {
+			HashSet<String> set = new HashSet<>();
+			for (Text val : data) {
+				set.add(val.toString());
+			}
+			if (set.size() == 2) {
+				
+				//优化点2：用不到的可以不输出，减少向磁盘写的时间；
+				context.write(new Text(ip), null);
+			}
+		}
+
+		public static void main(String[] args) throws IOException {
+			Configuration conf = new Configuration();
+			Job job = Job.getInstance(conf);
+
+			job.setJarByClass(Repeat_UV.class);
+			job.setMapperClass(map.class);
+			job.setReducerClass(reduce.class);
+
+			job.setMapOutputKeyClass(Text.class);
+			job.setMapOutputValueClass(Text.class);
+
+			FileInputFormat.addInputPaths(job, args[0]);
+			FileOutputFormat.setOutputPath(job, new Path(args[1]));
+
+			try {
+				System.exit(job.waitForCompletion(true) ? 0 : 1);
+			} catch (ClassNotFoundException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			} catch (InterruptedException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+	}
+}
