@@ -1,0 +1,9 @@
+	public static Node reverseLinkList(Node head) {
+		if (head == null || head.next == null)
+			return head;
+		Node tmp = head.next;
+		head.next = null;
+		Node rever_ll = reverseLinkList(tmp);
+		tmp.next = head;
+		return rever_ll;
+	}
