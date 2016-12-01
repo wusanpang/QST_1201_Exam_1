@@ -1,0 +1,18 @@
+create table table1(
+ip string,
+time string)
+row format delimited
+fields terminated by '\t'
+stored as textfile;
+
+create table table2(
+ip string,
+time string)
+row format delimited
+fields terminated by '\t'
+stored as textfile;
+
+load data local inpath '/home/hadoop/qst/wutengyue/mapred_dev_double/ip_time' into table table1;
+load data local inpath '/home/hadoop/qst/wutengyue/mapred_dev_double/ip_time_2' into table table2;
+
+select count(distinct(ip)) from table2 where ip in (select ip from table1);
